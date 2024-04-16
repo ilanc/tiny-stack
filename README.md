@@ -27,15 +27,38 @@ source .env
 OR export individual variables:
 
 ```bash
-export REPLICA_URL=https://<account_id>.r2.cloudflarestorage.com
-export LITESTREAM_ACCESS_KEY_ID=access_key_id
-export LITESTREAM_SECRET_ACCESS_KEY=secret_access_key
+# https://litestream.io/getting-started/
+docker run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"
+xdg-open http://localhost:9001/ &
+# Buckets > Create Bucket > Save: bucket name = mybkt
+# export REPLICA_URL=https://<account_id>.r2.cloudflarestorage.com
+# litestream replicate fruits.db s3://mybkt.localhost:9000/fruits.db
+export REPLICA_URL=s3://mybkt.localhost:9000/fruits.db
+export LITESTREAM_ACCESS_KEY_ID=minioadmin
+export LITESTREAM_SECRET_ACCESS_KEY=minioadmin
+
+# install litestream & sqllite in host
+wget https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.deb
+sudo dpkg -i litestream-v0.3.13-linux-amd64.deb
+rm !$
+sudo apt install sqlite3
+
+# create fruits.db
+sqlite3 fruits.db
+CREATE TABLE fruits (name TEXT, color TEXT);
+INSERT INTO fruits (name, color) VALUES ('apple', 'red');
+INSERT INTO fruits (name, color) VALUES ('banana', 'yellow');
+
+# replicate it to minio s3
+litestream replicate fruits.db s3://mybkt.localhost:9000/fruits.db
+
+docker run   -p 4321:4321   -e REPLICA_URL   -e LITESTREAM_ACCESS_KEY_ID   -e LITESTREAM_SECRET_ACCESS_KEY   -v $(pwd)/data:/data -it --entrypoint=/bin/sh   tiny-stack
 ```
 
 3. Run the Docker image
 
 ```bash
-docker run \                                                
+docker run \
   -p 4321:4321 \
   -e REPLICA_URL \
   -e LITESTREAM_ACCESS_KEY_ID \
